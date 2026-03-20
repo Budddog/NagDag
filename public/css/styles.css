@@ -167,7 +167,7 @@ ul { list-style: none; }
 
 .hero-nag { background: var(--black); }
 .hero-dag { background: var(--off-white); }
-.hero-dag img { object-position: center 40%; }
+.hero-dag img { transform: scale(1.3); object-position: center 45%; }
 
 .hero-center {
   position: absolute;

@@ -147,6 +147,43 @@ app.get('/api/test-paypal', async (req, res) => {
   }
 });
 
+// Test order creation
+app.get('/api/test-order', async (req, res) => {
+  const base = process.env.PAYPAL_API_BASE || 'https://api-m.paypal.com';
+  try {
+    const accessToken = await getAccessToken();
+    const orderPayload = {
+      intent: 'CAPTURE',
+      purchase_units: [{
+        amount: {
+          currency_code: 'ZAR',
+          value: '299',
+          breakdown: {
+            item_total: { currency_code: 'ZAR', value: '299' }
+          }
+        },
+        items: [{
+          name: 'Nag',
+          quantity: '1',
+          unit_amount: { currency_code: 'ZAR', value: '299' }
+        }]
+      }]
+    };
+    const response = await fetch(`${base}/v2/checkout/orders`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`
+      },
+      body: JSON.stringify(orderPayload)
+    });
+    const data = await response.json();
+    res.json({ status: response.ok ? 'ok' : 'error', http_status: response.status, paypal_response: data });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
 // SPA fallback
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));

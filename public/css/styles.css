@@ -978,8 +978,17 @@ ul { list-style: none; }
     height: 50vh;
   }
 
+  .hero-center {
+    top: 50vh;
+    padding: 0 24px;
+  }
+
   .hero-center h1 {
     font-size: 2.2rem;
+  }
+
+  .hero-center p {
+    font-size: 0.7rem;
   }
 
   .product-layout,
@@ -990,7 +999,11 @@ ul { list-style: none; }
   }
 
   .product-photo {
-    height: 70vh;
+    height: 60vh;
+  }
+
+  .product-photo img {
+    object-position: center center;
   }
 
   .product-text {
@@ -1002,31 +1015,119 @@ ul { list-style: none; }
     margin-left: 0;
   }
 
+  .product-text h2 {
+    font-size: 2.5rem;
+  }
+
+  .product-tagline {
+    font-size: 1rem;
+    margin-bottom: 24px;
+  }
+
+  .product-description {
+    font-size: 0.9rem;
+    margin-bottom: 24px;
+  }
+
+  .product-action {
+    gap: 16px;
+  }
+
+  .product-price {
+    font-size: 1.6rem;
+  }
+
+  .bundle-section {
+    padding: 60px 24px;
+  }
+
+  .bundle-new {
+    font-size: 2rem;
+  }
+
+  .testimonials-section {
+    padding: 60px 0;
+  }
+
   .testimonials-grid {
     grid-template-columns: 1fr;
     gap: 32px;
   }
 
+  .testimonial p {
+    font-size: 0.9rem;
+  }
+
   .info-strip {
-    flex-wrap: wrap;
-    gap: 12px 20px;
+    flex-direction: column;
+    gap: 10px;
+    padding: 32px 24px;
+    text-align: center;
   }
 
   .info-dot { display: none; }
+
+  .faq-section {
+    padding: 60px 0;
+  }
+
+  .faq-question {
+    font-size: 0.85rem;
+    padding: 16px 0;
+  }
 
   .footer-inner {
     flex-direction: column;
     gap: 16px;
     text-align: center;
   }
+
+  .checkout-modal {
+    width: 100%;
+    max-width: 100vw;
+    height: 100vh;
+    max-height: 100vh;
+    top: 0;
+    left: 0;
+    transform: translateY(100%);
+    border-radius: 0;
+  }
+
+  .checkout-modal.active {
+    transform: translateY(0);
+  }
 }
 
 @media (max-width: 480px) {
+  .hero-half {
+    height: 45vh;
+  }
+
+  .hero-center {
+    top: 45vh;
+  }
+
+  .hero-center h1 {
+    font-size: 1.8rem;
+  }
+
   .field-row {
     grid-template-columns: 1fr;
   }
 
   .product-photo {
     height: 50vh;
+  }
+
+  .product-text {
+    padding: 36px 20px;
+  }
+
+  .product-text h2 {
+    font-size: 2.2rem;
+  }
+
+  .nav-logo {
+    font-size: 1.1rem;
   }
 }

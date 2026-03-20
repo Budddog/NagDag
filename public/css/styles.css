@@ -396,6 +396,13 @@ ul { list-style: none; }
   font-weight: 500;
 }
 
+.bundle-sub {
+  font-size: 0.8rem;
+  color: rgba(255,255,255,0.4);
+  margin-bottom: 24px;
+  font-weight: 300;
+}
+
 .bundle-pricing {
   display: flex;
   align-items: center;

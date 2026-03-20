@@ -3,7 +3,6 @@ const Cart = {
     nag: { name: 'Nag', price: 299 },
     dag: { name: 'Dag', price: 299 }
   },
-  BUNDLE_PRICE: 499,
   state: { nag: 0, dag: 0 },
 
   init() {
@@ -25,13 +24,15 @@ const Cart = {
 
   getSubtotal() { return (this.state.nag * 299) + (this.state.dag * 299); },
 
-  getDiscount() {
-    // Bundle discount: for each pair of (1 nag + 1 dag), save R99 (598 -> 499)
-    const bundles = Math.min(this.state.nag, this.state.dag);
-    return bundles * (299 + 299 - this.BUNDLE_PRICE);
+  // Pricing: 1 = R299, 2 = R499, each extra = R200
+  getTotal() {
+    const count = this.getCount();
+    if (count === 0) return 0;
+    if (count === 1) return 299;
+    return 499 + ((count - 2) * 200);
   },
 
-  getTotal() { return this.getSubtotal() - this.getDiscount(); },
+  getDiscount() { return this.getSubtotal() - this.getTotal(); },
 
   addProduct(p, qty = 1) {
     if (this.state[p] !== undefined) {
@@ -120,7 +121,7 @@ const Cart = {
     if (discountEl) {
       if (discount > 0) {
         const lang = document.documentElement.getAttribute('data-lang') || 'af';
-        discountEl.innerHTML = `<span>${lang === 'af' ? 'Bundel afslag' : 'Bundle discount'}</span><span>-R${discount}</span>`;
+        discountEl.innerHTML = `<span>${lang === 'af' ? 'Afslag' : 'Discount'}</span><span>-R${discount}</span>`;
         discountEl.style.display = '';
       } else {
         discountEl.style.display = 'none';

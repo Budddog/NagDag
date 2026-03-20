@@ -1,195 +1,142 @@
 const express = require('express');
+const crypto = require('crypto');
 const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+const NOWPAYMENTS_API_KEY = process.env.NOWPAYMENTS_API_KEY;
+const NOWPAYMENTS_IPN_SECRET = process.env.NOWPAYMENTS_IPN_SECRET;
+const NOWPAYMENTS_API_BASE = 'https://api.nowpayments.io/v1';
+const SITE_URL = process.env.SITE_URL || 'https://nagdag.fun';
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// PayPal auth helper
-async function getAccessToken() {
-  const clientId = process.env.PAYPAL_CLIENT_ID;
-  const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
-  const base = process.env.PAYPAL_API_BASE || 'https://api-m.paypal.com';
-
-  const auth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
-
-  const response = await fetch(`${base}/v1/oauth2/token`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Basic ${auth}`,
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
-    body: 'grant_type=client_credentials'
-  });
-
-  if (!response.ok) throw new Error(`PayPal auth failed: ${response.status}`);
-  const data = await response.json();
-  return data.access_token;
-}
-
-// Create PayPal order
+// Create NOWPayments invoice
 app.post('/api/create-order', async (req, res) => {
-  const base = process.env.PAYPAL_API_BASE || 'https://api-m.paypal.com';
-
   try {
     const { cart, total, subtotal, discount, items, shipping } = req.body;
-    const accessToken = await getAccessToken();
 
-    const itemTotal = subtotal || total;
-    const discountAmount = discount || '0';
+    const orderId = 'ND-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7);
 
-    const breakdown = {
-      item_total: { currency_code: 'ZAR', value: itemTotal.toString() }
+    const invoicePayload = {
+      price_amount: parseFloat(total),
+      price_currency: 'zar',
+      order_id: orderId,
+      order_description: items.map(i => `${i.name} x${i.quantity}`).join(', '),
+      ipn_callback_url: `${SITE_URL}/api/nowpayments/ipn`,
+      success_url: `${SITE_URL}/dankie.html`,
+      cancel_url: SITE_URL,
+      is_fixed_rate: false
     };
 
-    if (parseInt(discountAmount) > 0) {
-      breakdown.discount = { currency_code: 'ZAR', value: discountAmount.toString() };
-    }
-
-    const orderPayload = {
-      intent: 'CAPTURE',
-      purchase_units: [{
-        amount: {
-          currency_code: 'ZAR',
-          value: total.toString(),
-          breakdown
-        },
-        items: items.map(item => ({
-          name: item.name,
-          quantity: item.quantity.toString(),
-          unit_amount: { currency_code: 'ZAR', value: item.unit_amount.toString() }
-        })),
-        shipping: {
-          name: { full_name: shipping.fullName },
-          address: {
-            address_line_1: shipping.address,
-            admin_area_2: shipping.city,
-            postal_code: shipping.postalCode,
-            admin_area_1: shipping.province,
-            country_code: 'ZA'
-          }
-        }
-      }]
-    };
-
-    const response = await fetch(`${base}/v2/checkout/orders`, {
+    const response = await fetch(`${NOWPAYMENTS_API_BASE}/invoice`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`
+        'x-api-key': NOWPAYMENTS_API_KEY,
+        'Content-Type': 'application/json'
       },
-      body: JSON.stringify(orderPayload)
+      body: JSON.stringify(invoicePayload)
     });
 
     const data = await response.json();
+
     if (!response.ok) {
-      console.error('PayPal create order error:', data);
-      return res.status(response.status).json(data);
+      console.error('NOWPayments create invoice error:', data);
+      return res.status(response.status).json({ error: data.message || 'Failed to create invoice' });
     }
 
-    res.json({ id: data.id });
+    console.log('Invoice created:', {
+      orderId,
+      invoiceId: data.id,
+      amount: total,
+      items: invoicePayload.order_description
+    });
+
+    res.json({ invoice_url: data.invoice_url, id: data.id, order_id: orderId });
   } catch (error) {
     console.error('Create order error:', error);
     res.status(500).json({ error: 'Failed to create order' });
   }
 });
 
-// Capture PayPal order
-app.post('/api/capture-order', async (req, res) => {
-  const base = process.env.PAYPAL_API_BASE || 'https://api-m.paypal.com';
-
+// NOWPayments IPN webhook
+app.post('/api/nowpayments/ipn', (req, res) => {
   try {
-    const { orderID } = req.body;
-    if (!orderID) return res.status(400).json({ error: 'Missing orderID' });
+    const receivedSig = req.headers['x-nowpayments-sig'];
 
-    const accessToken = await getAccessToken();
-
-    const response = await fetch(`${base}/v2/checkout/orders/${orderID}/capture`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`
-      }
-    });
-
-    const data = await response.json();
-    if (!response.ok) {
-      console.error('PayPal capture error:', data);
-      return res.status(response.status).json(data);
+    if (!receivedSig || !NOWPAYMENTS_IPN_SECRET) {
+      console.error('IPN: Missing signature or secret');
+      return res.status(400).json({ error: 'Missing signature' });
     }
 
-    const capture = data.purchase_units?.[0]?.payments?.captures?.[0];
-    console.log('Order captured:', {
-      orderId: data.id,
-      status: data.status,
-      amount: capture?.amount?.value,
-      currency: capture?.amount?.currency_code,
-      payer: data.payer?.email_address
+    // Verify HMAC-SHA512 signature
+    const sortedBody = JSON.stringify(req.body, Object.keys(req.body).sort());
+    const hmac = crypto.createHmac('sha512', NOWPAYMENTS_IPN_SECRET);
+    hmac.update(sortedBody);
+    const computedSig = hmac.digest('hex');
+
+    if (computedSig !== receivedSig) {
+      console.error('IPN: Invalid signature');
+      return res.status(400).json({ error: 'Invalid signature' });
+    }
+
+    const { payment_status, order_id, pay_amount, pay_currency, price_amount, price_currency, payment_id } = req.body;
+
+    console.log('IPN received:', {
+      payment_id,
+      order_id,
+      status: payment_status,
+      paid: `${pay_amount} ${pay_currency}`,
+      price: `${price_amount} ${price_currency}`
     });
 
-    res.json({ status: data.status, id: data.id });
+    if (payment_status === 'finished') {
+      console.log('Payment COMPLETED for order:', order_id);
+    } else if (payment_status === 'partially_paid') {
+      console.log('Partial payment for order:', order_id);
+    } else if (payment_status === 'failed' || payment_status === 'expired') {
+      console.log('Payment failed/expired for order:', order_id);
+    }
+
+    res.json({ status: 'ok' });
   } catch (error) {
-    console.error('Capture order error:', error);
-    res.status(500).json({ error: 'Failed to capture order' });
+    console.error('IPN error:', error);
+    res.status(500).json({ error: 'IPN processing failed' });
   }
 });
 
-// Health check with env var status
+// Health check
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
-    paypal_client_id: process.env.PAYPAL_CLIENT_ID ? 'set' : 'MISSING',
-    paypal_client_secret: process.env.PAYPAL_CLIENT_SECRET ? 'set' : 'MISSING',
-    paypal_api_base: process.env.PAYPAL_API_BASE || 'https://api-m.paypal.com (default)'
+    nowpayments_api_key: NOWPAYMENTS_API_KEY ? 'set' : 'MISSING',
+    nowpayments_ipn_secret: NOWPAYMENTS_IPN_SECRET ? 'set' : 'MISSING',
+    site_url: SITE_URL
   });
 });
 
-// Test PayPal auth
-app.get('/api/test-paypal', async (req, res) => {
+// Test NOWPayments connection
+app.get('/api/test-payment', async (req, res) => {
   try {
-    const accessToken = await getAccessToken();
-    res.json({ status: 'ok', token_received: true, token_preview: accessToken.substring(0, 10) + '...' });
-  } catch (error) {
-    res.status(500).json({ status: 'error', message: error.message });
-  }
-});
-
-// Test order creation
-app.get('/api/test-order', async (req, res) => {
-  const base = process.env.PAYPAL_API_BASE || 'https://api-m.paypal.com';
-  try {
-    const accessToken = await getAccessToken();
-    const orderPayload = {
-      intent: 'CAPTURE',
-      purchase_units: [{
-        amount: {
-          currency_code: 'ZAR',
-          value: '299',
-          breakdown: {
-            item_total: { currency_code: 'ZAR', value: '299' }
-          }
-        },
-        items: [{
-          name: 'Nag',
-          quantity: '1',
-          unit_amount: { currency_code: 'ZAR', value: '299' }
-        }]
-      }]
-    };
-    const response = await fetch(`${base}/v2/checkout/orders`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`
-      },
-      body: JSON.stringify(orderPayload)
+    const statusRes = await fetch(`${NOWPAYMENTS_API_BASE}/status`, {
+      headers: { 'x-api-key': NOWPAYMENTS_API_KEY }
     });
-    const data = await response.json();
-    res.json({ status: response.ok ? 'ok' : 'error', http_status: response.status, paypal_response: data });
+    const statusData = await statusRes.json();
+
+    const currRes = await fetch(`${NOWPAYMENTS_API_BASE}/merchant/coins`, {
+      headers: { 'x-api-key': NOWPAYMENTS_API_KEY }
+    });
+    const currData = await currRes.json();
+
+    res.json({
+      api_status: statusData,
+      supported_coins: currData.selectedCurrencies ? currData.selectedCurrencies.slice(0, 10) : 'none configured',
+      total_coins: currData.selectedCurrencies ? currData.selectedCurrencies.length : 0
+    });
   } catch (error) {
-    res.status(500).json({ status: 'error', message: error.message });
+    res.status(500).json({ error: error.message });
   }
 });
 

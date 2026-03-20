@@ -898,8 +898,6 @@ ul { list-style: none; }
 
 .back-btn:hover { color: var(--dark); }
 
-#paypal-button-container { min-height: 120px; }
-
 .secure-text {
   text-align: center;
   font-size: 0.7rem;

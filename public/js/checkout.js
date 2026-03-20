@@ -10,6 +10,7 @@ const Checkout = {
     document.getElementById('checkoutClose').addEventListener('click', () => this.close());
     document.getElementById('checkoutOverlay').addEventListener('click', () => this.close());
     document.getElementById('checkoutBack').addEventListener('click', () => this.showDeliveryStep());
+    document.getElementById('payBtn').addEventListener('click', () => this.processPayment());
   },
 
   open() {
@@ -38,7 +39,7 @@ const Checkout = {
     document.getElementById('stepDot1').classList.remove('active');
     document.getElementById('stepDot2').classList.add('active');
     this.renderSummary();
-    this.renderPayPalButtons();
+    this.hideError();
   },
 
   renderSummary() {
@@ -60,116 +61,82 @@ const Checkout = {
     el.innerHTML = html;
   },
 
-  renderPayPalButtons() {
-    const container = document.getElementById('paypal-button-container');
-    container.innerHTML = '';
+  async processPayment() {
+    const btn = document.getElementById('payBtn');
+    const lang = document.documentElement.getAttribute('data-lang') || 'af';
+    btn.disabled = true;
+    btn.textContent = lang === 'af' ? 'Besig...' : 'Processing...';
+    this.hideError();
 
-    if (typeof paypal === 'undefined') {
-      container.innerHTML = '<p style="text-align:center;color:#999;font-size:0.85rem;padding:20px 0;">Payment loading failed. Please reload the page.</p>';
-      return;
-    }
-
-    const self = this;
-    const errorEl = document.getElementById('paypal-error');
-    if (errorEl) errorEl.style.display = 'none';
-
-    paypal.Buttons({
-      style: { layout: 'vertical', color: 'black', shape: 'rect', label: 'pay', height: 44 },
-
-      createOrder: async () => {
-        const items = [];
-        ['nag', 'dag'].forEach(key => {
-          if (Cart.state[key] > 0) {
-            items.push({ name: Cart.PRODUCTS[key].name, quantity: Cart.state[key], unit_amount: Cart.PRODUCTS[key].price.toString() });
-          }
-        });
-
-        const total = Cart.getTotal();
-        const subtotal = Cart.getSubtotal();
-        const discount = Cart.getDiscount();
-
-        try {
-          const res = await fetch('/api/create-order', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              cart: { ...Cart.state },
-              total: total.toString(),
-              subtotal: subtotal.toString(),
-              discount: discount.toString(),
-              items,
-              shipping: {
-                fullName: self.orderData.fullName,
-                address: self.orderData.address,
-                city: self.orderData.city,
-                postalCode: self.orderData.postalCode,
-                province: self.orderData.province
-              }
-            })
-          });
-
-          const data = await res.json();
-          if (!res.ok) {
-            console.error('Create order failed:', res.status, JSON.stringify(data));
-            const msg = data.details ? data.details.map(d => d.description || d.issue).join(', ') : (data.message || data.error || 'Order creation failed');
-            self.showError(msg);
-            throw new Error(msg);
-          }
-          return data.id;
-        } catch (err) {
-          console.error('Create order error:', err);
-          self.showError(err.message);
-          throw err;
-        }
-      },
-
-      onApprove: async (data) => {
-        try {
-          const res = await fetch('/api/capture-order', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ orderID: data.orderID })
-          });
-
-          const result = await res.json();
-
-          if (result.status === 'COMPLETED') {
-            localStorage.setItem('nagdag_last_order', JSON.stringify({
-              ...self.orderData,
-              cart: { ...Cart.state },
-              total: Cart.getTotal(),
-              discount: Cart.getDiscount(),
-              timestamp: new Date().toISOString()
-            }));
-            localStorage.removeItem('nagdag_cart');
-            window.location.href = '/dankie.html';
-          } else {
-            console.error('Capture result:', JSON.stringify(result));
-            self.showError('Payment not completed: ' + (result.status || 'unknown'));
-          }
-        } catch (err) {
-          console.error('Capture error:', err);
-          self.showError('Payment capture failed: ' + err.message);
-        }
-      },
-
-      onError: (err) => {
-        console.error('PayPal SDK error:', err);
-        self.showError('PayPal error: ' + (err.message || err));
+    const items = [];
+    ['nag', 'dag'].forEach(key => {
+      if (Cart.state[key] > 0) {
+        items.push({ name: Cart.PRODUCTS[key].name, quantity: Cart.state[key], unit_amount: Cart.PRODUCTS[key].price.toString() });
       }
-    }).render('#paypal-button-container');
+    });
+
+    try {
+      const res = await fetch('/api/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cart: { ...Cart.state },
+          total: Cart.getTotal().toString(),
+          subtotal: Cart.getSubtotal().toString(),
+          discount: Cart.getDiscount().toString(),
+          items,
+          shipping: {
+            fullName: this.orderData.fullName,
+            address: this.orderData.address,
+            city: this.orderData.city,
+            postalCode: this.orderData.postalCode,
+            province: this.orderData.province
+          }
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to create order');
+      }
+
+      // Save order data before redirect
+      localStorage.setItem('nagdag_last_order', JSON.stringify({
+        ...this.orderData,
+        cart: { ...Cart.state },
+        total: Cart.getTotal(),
+        discount: Cart.getDiscount(),
+        orderId: data.order_id,
+        timestamp: new Date().toISOString()
+      }));
+
+      // Redirect to NOWPayments checkout
+      window.location.href = data.invoice_url;
+
+    } catch (err) {
+      console.error('Payment error:', err);
+      this.showError(err.message);
+      btn.disabled = false;
+      btn.textContent = lang === 'af' ? 'Betaal met Crypto' : 'Pay with Crypto';
+    }
   },
 
   showError(msg) {
-    let el = document.getElementById('paypal-error');
+    let el = document.getElementById('payment-error');
     if (!el) {
       el = document.createElement('p');
-      el.id = 'paypal-error';
+      el.id = 'payment-error';
       el.style.cssText = 'text-align:center;color:#c00;font-size:0.8rem;padding:12px 0;';
-      document.getElementById('paypal-button-container').after(el);
+      document.getElementById('payBtn').after(el);
     }
     el.textContent = msg;
     el.style.display = '';
+  },
+
+  hideError() {
+    const el = document.getElementById('payment-error');
+    if (el) el.style.display = 'none';
   },
 
   handleSubmit(e) {

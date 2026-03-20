@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="af">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dankie vir jou Bestelling | Nag & Dag</title>
+  <meta name="description" content="Dankie vir jou bestelling by Nag & Dag. Jou cannabis gummies word voorberei vir diskrete aflewering.">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#7b5ea7">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .thankyou {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 40px 24px;
+      background: var(--bg-main);
+    }
+    .thankyou-content {
+      max-width: 500px;
+    }
+    .thankyou-icons {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .thankyou h1 {
+      font-size: 2.5rem;
+      margin-bottom: 16px;
+      color: var(--text-primary);
+    }
+    .thankyou p {
+      color: var(--text-secondary);
+      line-height: 1.7;
+      margin-bottom: 12px;
+    }
+    .thankyou .btn {
+      margin-top: 24px;
+    }
+    .order-details {
+      background: var(--dag-cream);
+      border-radius: var(--radius-sm);
+      padding: 20px;
+      margin: 24px 0;
+      text-align: left;
+    }
+    .order-details h3 {
+      font-size: 1rem;
+      margin-bottom: 12px;
+    }
+    .order-line {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+    .checkmark {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--nag-purple), var(--dag-gold));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 24px;
+    }
+    .checkmark svg {
+      width: 32px;
+      height: 32px;
+    }
+  </style>
+</head>
+<body>
+  <section class="thankyou">
+    <div class="thankyou-content">
+      <div class="checkmark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <h1>Dankie!</h1>
+      <p>Jou bestelling is ontvang. Ons sal dit so gou as moontlik vir jou voorberei en versend.</p>
+      <p>Jy sal 'n bevestigings-e-pos ontvang met jou bestelbesonderhede.</p>
+
+      <div class="order-details" id="orderDetails" style="display:none;">
+        <h3>Bestel Opsomming</h3>
+        <div id="orderLines"></div>
+      </div>
+
+      <p style="font-size: 0.85rem; color: var(--text-muted);">
+        Aflewering neem gewoonlik 2-5 werksdae. Onthou – diskrete verpakking, geen logo op die boks nie.
+      </p>
+
+      <a href="/" class="btn btn-primary">Terug na Tuisblad</a>
+    </div>
+  </section>
+
+  <script>
+    // Show order details if available
+    try {
+      const order = JSON.parse(localStorage.getItem('nagdag_last_order'));
+      if (order) {
+        const details = document.getElementById('orderDetails');
+        const lines = document.getElementById('orderLines');
+        let html = '';
+
+        if (order.cart.nag > 0) {
+          html += `<div class="order-line"><span>Nag × ${order.cart.nag}</span><span>R${order.cart.nag * 299}</span></div>`;
+        }
+        if (order.cart.dag > 0) {
+          html += `<div class="order-line"><span>Dag × ${order.cart.dag}</span><span>R${order.cart.dag * 299}</span></div>`;
+        }
+        html += `<div class="order-line" style="font-weight:600;border-top:1px solid var(--border-light);padding-top:8px;margin-top:8px;"><span>Totaal</span><span>R${order.total}</span></div>`;
+
+        lines.innerHTML = html;
+        details.style.display = 'block';
+
+        // Clear cart
+        localStorage.removeItem('nagdag_cart');
+      }
+    } catch(e) {}
+  </script>
+</body>
+</html>

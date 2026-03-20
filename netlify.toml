@@ -1,0 +1,9 @@
+[build]
+  publish = "."
+  functions = "functions"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  conditions = {Role = ["admin"]}

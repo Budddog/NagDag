@@ -167,7 +167,7 @@ ul { list-style: none; }
 
 .hero-nag { background: var(--black); }
 .hero-dag { background: var(--off-white); }
-.hero-dag img { transform: scale(1.55); object-position: center 42%; }
+.hero-dag img { transform: scale(1.2); object-position: center 48%; }
 
 .hero-center {
   position: absolute;
@@ -247,8 +247,8 @@ ul { list-style: none; }
 }
 
 .product-section-light .product-photo img {
-  transform: scale(1.4);
-  object-position: center 42%;
+  transform: scale(1.2);
+  object-position: center 48%;
 }
 
 .product-text {

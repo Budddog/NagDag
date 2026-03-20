@@ -137,6 +137,16 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Test PayPal auth
+app.get('/api/test-paypal', async (req, res) => {
+  try {
+    const accessToken = await getAccessToken();
+    res.json({ status: 'ok', token_received: true, token_preview: accessToken.substring(0, 10) + '...' });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
 // SPA fallback
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="af">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dankie | Nag & Dag</title>
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#000000">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .thankyou {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 40px 24px;
+    }
+    .thankyou-content { max-width: 400px; }
+    .thankyou h1 { font-size: 2.5rem; margin-bottom: 16px; letter-spacing: -0.02em; }
+    .thankyou p { color: var(--mid); font-size: 0.9rem; font-weight: 300; line-height: 1.7; margin-bottom: 8px; }
+    .order-box { background: var(--off-white); padding: 20px; margin: 24px 0; text-align: left; }
+    .order-line { display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.85rem; color: var(--mid); }
+    .order-total { font-weight: 500; color: var(--dark); border-top: 1px solid var(--light); padding-top: 8px; margin-top: 8px; }
+    .back-link { display: inline-block; margin-top: 24px; font-size: 0.85rem; color: var(--mid); border-bottom: 1px solid var(--light); padding-bottom: 2px; }
+    .back-link:hover { color: var(--dark); border-color: var(--dark); }
+  </style>
+</head>
+<body>
+  <section class="thankyou">
+    <div class="thankyou-content">
+      <h1>Dankie</h1>
+      <p>Jou bestelling is ontvang.</p>
+      <p>Diskrete aflewering binne 2–5 werksdae.</p>
+      <div class="order-box" id="orderBox" style="display:none;">
+        <div id="orderLines"></div>
+      </div>
+      <a href="/" class="back-link">Terug</a>
+    </div>
+  </section>
+  <script>
+    try {
+      const order = JSON.parse(localStorage.getItem('nagdag_last_order'));
+      if (order) {
+        let html = '';
+        if (order.cart.nag > 0) html += `<div class="order-line"><span>Nag x ${order.cart.nag}</span><span>R${order.cart.nag * 299}</span></div>`;
+        if (order.cart.dag > 0) html += `<div class="order-line"><span>Dag x ${order.cart.dag}</span><span>R${order.cart.dag * 299}</span></div>`;
+        html += `<div class="order-line order-total"><span>Totaal</span><span>R${order.total}</span></div>`;
+        document.getElementById('orderLines').innerHTML = html;
+        document.getElementById('orderBox').style.display = '';
+        localStorage.removeItem('nagdag_cart');
+      }
+    } catch(e) {}
+  </script>
+</body>
+</html>

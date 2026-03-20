@@ -34,8 +34,19 @@ app.post('/api/create-order', async (req, res) => {
   const base = process.env.PAYPAL_API_BASE || 'https://api-m.paypal.com';
 
   try {
-    const { cart, total, items, shipping } = req.body;
+    const { cart, total, subtotal, discount, items, shipping } = req.body;
     const accessToken = await getAccessToken();
+
+    const itemTotal = subtotal || total;
+    const discountAmount = discount || '0';
+
+    const breakdown = {
+      item_total: { currency_code: 'ZAR', value: itemTotal.toString() }
+    };
+
+    if (parseInt(discountAmount) > 0) {
+      breakdown.discount = { currency_code: 'ZAR', value: discountAmount.toString() };
+    }
 
     const orderPayload = {
       intent: 'CAPTURE',
@@ -43,9 +54,7 @@ app.post('/api/create-order', async (req, res) => {
         amount: {
           currency_code: 'ZAR',
           value: total.toString(),
-          breakdown: {
-            item_total: { currency_code: 'ZAR', value: total.toString() }
-          }
+          breakdown
         },
         items: items.map(item => ({
           name: item.name,

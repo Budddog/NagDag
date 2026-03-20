@@ -49,6 +49,7 @@
         let html = '';
         if (order.cart.nag > 0) html += `<div class="order-line"><span>Nag x ${order.cart.nag}</span><span>R${order.cart.nag * 299}</span></div>`;
         if (order.cart.dag > 0) html += `<div class="order-line"><span>Dag x ${order.cart.dag}</span><span>R${order.cart.dag * 299}</span></div>`;
+        if (order.discount && order.discount > 0) html += `<div class="order-line" style="color:#2a9d2a;"><span>Afslag</span><span>-R${order.discount}</span></div>`;
         html += `<div class="order-line order-total"><span>Totaal</span><span>R${order.total}</span></div>`;
         document.getElementById('orderLines').innerHTML = html;
         document.getElementById('orderBox').style.display = '';

@@ -19,8 +19,18 @@ const Cart = {
   },
 
   save() { localStorage.setItem('nagdag_cart', JSON.stringify(this.state)); },
-  getTotal() { return (this.state.nag * 299) + (this.state.dag * 299); },
+
   getCount() { return this.state.nag + this.state.dag; },
+
+  getDiscount() {
+    const count = this.getCount();
+    const discountItems = Math.floor(count / 3);
+    return discountItems * Math.round(299 / 2);
+  },
+
+  getSubtotal() { return (this.state.nag * 299) + (this.state.dag * 299); },
+
+  getTotal() { return this.getSubtotal() - this.getDiscount(); },
 
   addProduct(p, qty = 1) {
     if (this.state[p] !== undefined) {
@@ -40,7 +50,7 @@ const Cart = {
   },
 
   addBundle() {
-    this.state.nag++;
+    this.state.nag += 2;
     this.state.dag++;
     this.save();
     this.render();
@@ -102,6 +112,19 @@ const Cart = {
     el.textContent = count;
     el.classList.toggle('visible', count > 0);
     document.getElementById('cartTotal').textContent = `R${this.getTotal()}`;
+
+    const discountEl = document.getElementById('cartDiscount');
+    const discount = this.getDiscount();
+    if (discountEl) {
+      if (discount > 0) {
+        const lang = document.documentElement.getAttribute('data-lang') || 'af';
+        discountEl.innerHTML = `<span>${lang === 'af' ? 'Afslag (3de 50% af)' : 'Discount (3rd 50% off)'}</span><span>-R${discount}</span>`;
+        discountEl.style.display = '';
+      } else {
+        discountEl.style.display = 'none';
+      }
+    }
+
     this.renderDrawer();
   },
 

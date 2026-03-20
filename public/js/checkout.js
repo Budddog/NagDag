@@ -52,6 +52,10 @@ const Checkout = {
       }
     });
 
+    const discount = Cart.getDiscount();
+    if (discount > 0) {
+      html += `<div class="order-summary-line" style="color:#2a9d2a;"><span>${lang === 'af' ? '3de 50% af' : '3rd 50% off'}</span><span>-R${discount}</span></div>`;
+    }
     html += `<div class="order-summary-total"><span>${lang === 'af' ? 'Totaal' : 'Total'}</span><span>R${Cart.getTotal()}</span></div>`;
     el.innerHTML = html;
   },
@@ -84,6 +88,8 @@ const Checkout = {
           body: JSON.stringify({
             cart: { ...Cart.state },
             total: Cart.getTotal().toString(),
+            subtotal: Cart.getSubtotal().toString(),
+            discount: Cart.getDiscount().toString(),
             items,
             shipping: {
               fullName: self.orderData.fullName,
@@ -117,6 +123,7 @@ const Checkout = {
             ...self.orderData,
             cart: { ...Cart.state },
             total: Cart.getTotal(),
+            discount: Cart.getDiscount(),
             timestamp: new Date().toISOString()
           }));
           localStorage.removeItem('nagdag_cart');

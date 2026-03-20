@@ -127,6 +127,16 @@ app.post('/api/capture-order', async (req, res) => {
   }
 });
 
+// Health check with env var status
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    paypal_client_id: process.env.PAYPAL_CLIENT_ID ? 'set' : 'MISSING',
+    paypal_client_secret: process.env.PAYPAL_CLIENT_SECRET ? 'set' : 'MISSING',
+    paypal_api_base: process.env.PAYPAL_API_BASE || 'https://api-m.paypal.com (default)'
+  });
+});
+
 // SPA fallback
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));

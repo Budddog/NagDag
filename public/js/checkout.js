@@ -95,8 +95,11 @@ const Checkout = {
           })
         });
 
-        if (!res.ok) throw new Error('Order creation failed');
         const data = await res.json();
+        if (!res.ok) {
+          console.error('Create order failed:', res.status, data);
+          throw new Error(data.message || data.error || 'Order creation failed');
+        }
         return data.id;
       },
 

@@ -63,6 +63,7 @@ const Cart = {
       btn.addEventListener('click', () => {
         const p = btn.dataset.product;
         this.addProduct(p);
+        this.openDrawer();
         const lang = document.documentElement.getAttribute('data-lang') || 'af';
         const orig = btn.getAttribute(`data-${lang}`) || btn.textContent;
         btn.textContent = '✓';

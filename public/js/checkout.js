@@ -65,11 +65,13 @@ const Checkout = {
     container.innerHTML = '';
 
     if (typeof paypal === 'undefined') {
-      container.innerHTML = '<p style="text-align:center;color:#ccc;font-size:0.85rem;padding:20px 0;">Payment unavailable. Reload page.</p>';
+      container.innerHTML = '<p style="text-align:center;color:#999;font-size:0.85rem;padding:20px 0;">Payment loading failed. Please reload the page.</p>';
       return;
     }
 
     const self = this;
+    const errorEl = document.getElementById('paypal-error');
+    if (errorEl) errorEl.style.display = 'none';
 
     paypal.Buttons({
       style: { layout: 'vertical', color: 'black', shape: 'rect', label: 'pay', height: 44 },
@@ -82,62 +84,92 @@ const Checkout = {
           }
         });
 
-        const res = await fetch('/api/create-order', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            cart: { ...Cart.state },
-            total: Cart.getTotal().toString(),
-            subtotal: Cart.getSubtotal().toString(),
-            discount: Cart.getDiscount().toString(),
-            items,
-            shipping: {
-              fullName: self.orderData.fullName,
-              address: self.orderData.address,
-              city: self.orderData.city,
-              postalCode: self.orderData.postalCode,
-              province: self.orderData.province
-            }
-          })
-        });
+        const total = Cart.getTotal();
+        const subtotal = Cart.getSubtotal();
+        const discount = Cart.getDiscount();
 
-        const data = await res.json();
-        if (!res.ok) {
-          console.error('Create order failed:', res.status, data);
-          throw new Error(data.message || data.error || 'Order creation failed');
+        try {
+          const res = await fetch('/api/create-order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              cart: { ...Cart.state },
+              total: total.toString(),
+              subtotal: subtotal.toString(),
+              discount: discount.toString(),
+              items,
+              shipping: {
+                fullName: self.orderData.fullName,
+                address: self.orderData.address,
+                city: self.orderData.city,
+                postalCode: self.orderData.postalCode,
+                province: self.orderData.province
+              }
+            })
+          });
+
+          const data = await res.json();
+          if (!res.ok) {
+            console.error('Create order failed:', res.status, JSON.stringify(data));
+            const msg = data.details ? data.details.map(d => d.description || d.issue).join(', ') : (data.message || data.error || 'Order creation failed');
+            self.showError(msg);
+            throw new Error(msg);
+          }
+          return data.id;
+        } catch (err) {
+          console.error('Create order error:', err);
+          self.showError(err.message);
+          throw err;
         }
-        return data.id;
       },
 
       onApprove: async (data) => {
-        const res = await fetch('/api/capture-order', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderID: data.orderID })
-        });
+        try {
+          const res = await fetch('/api/capture-order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderID: data.orderID })
+          });
 
-        const result = await res.json();
+          const result = await res.json();
 
-        if (result.status === 'COMPLETED') {
-          localStorage.setItem('nagdag_last_order', JSON.stringify({
-            ...self.orderData,
-            cart: { ...Cart.state },
-            total: Cart.getTotal(),
-            discount: Cart.getDiscount(),
-            timestamp: new Date().toISOString()
-          }));
-          localStorage.removeItem('nagdag_cart');
-          window.location.href = '/dankie.html';
-        } else {
-          alert('Payment could not be completed. Please try again.');
+          if (result.status === 'COMPLETED') {
+            localStorage.setItem('nagdag_last_order', JSON.stringify({
+              ...self.orderData,
+              cart: { ...Cart.state },
+              total: Cart.getTotal(),
+              discount: Cart.getDiscount(),
+              timestamp: new Date().toISOString()
+            }));
+            localStorage.removeItem('nagdag_cart');
+            window.location.href = '/dankie.html';
+          } else {
+            console.error('Capture result:', JSON.stringify(result));
+            self.showError('Payment not completed: ' + (result.status || 'unknown'));
+          }
+        } catch (err) {
+          console.error('Capture error:', err);
+          self.showError('Payment capture failed: ' + err.message);
         }
       },
 
       onError: (err) => {
-        console.error('PayPal error:', err);
-        alert('Something went wrong. Please try again.');
+        console.error('PayPal SDK error:', err);
+        self.showError('PayPal error: ' + (err.message || err));
       }
     }).render('#paypal-button-container');
+  },
+
+  showError(msg) {
+    let el = document.getElementById('paypal-error');
+    if (!el) {
+      el = document.createElement('p');
+      el.id = 'paypal-error';
+      el.style.cssText = 'text-align:center;color:#c00;font-size:0.8rem;padding:12px 0;';
+      document.getElementById('paypal-button-container').after(el);
+    }
+    el.textContent = msg;
+    el.style.display = '';
   },
 
   handleSubmit(e) {

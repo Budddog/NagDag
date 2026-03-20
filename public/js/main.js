@@ -34,6 +34,7 @@ function initLanguageToggle() {
     const next = html.getAttribute('data-lang') === 'af' ? 'en' : 'af';
     setLanguage(next);
     localStorage.setItem('nagdag_lang', next);
+    if (typeof Cart !== 'undefined') Cart.render();
   });
 }
 

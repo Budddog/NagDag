@@ -118,7 +118,7 @@ const Checkout = {
       console.error('Payment error:', err);
       this.showError(err.message);
       btn.disabled = false;
-      btn.textContent = lang === 'af' ? 'Betaal met Crypto' : 'Pay with Crypto';
+      btn.textContent = lang === 'af' ? 'Betaal' : 'Pay Now';
     }
   },
 

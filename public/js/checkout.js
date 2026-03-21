@@ -87,6 +87,8 @@ const Checkout = {
           items,
           shipping: {
             fullName: this.orderData.fullName,
+            email: this.orderData.email,
+            phone: this.orderData.phone,
             address: this.orderData.address,
             city: this.orderData.city,
             postalCode: this.orderData.postalCode,
@@ -98,7 +100,7 @@ const Checkout = {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to create order');
+        throw new Error(data.error || 'Failed to create checkout');
       }
 
       // Save order data before redirect
@@ -111,14 +113,19 @@ const Checkout = {
         timestamp: new Date().toISOString()
       }));
 
-      // Redirect to NOWPayments checkout
-      window.location.href = data.invoice_url;
+      // Clear cart
+      Cart.state = { nag: 0, dag: 0 };
+      Cart.save();
+      Cart.render();
+
+      // Redirect to Yoco checkout
+      window.location.href = data.redirect_url;
 
     } catch (err) {
       console.error('Payment error:', err);
       this.showError(err.message);
       btn.disabled = false;
-      btn.textContent = lang === 'af' ? 'Betaal' : 'Pay Now';
+      btn.textContent = lang === 'af' ? 'Betaal nou' : 'Pay Now';
     }
   },
 

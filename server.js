@@ -5,6 +5,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 const YOCO_SECRET_KEY = process.env.YOCO_SECRET_KEY;
+const YOCO_WEBHOOK_SECRET = process.env.YOCO_WEBHOOK_SECRET;
 const SITE_URL = process.env.SITE_URL || 'https://nagdag.fun';
 
 app.use(express.json());
@@ -77,9 +78,33 @@ app.post('/api/create-order', async (req, res) => {
   }
 });
 
-// Yoco webhook (configure in Yoco dashboard)
+// Yoco webhook
 app.post('/api/yoco/webhook', (req, res) => {
   try {
+    // Verify webhook signature if secret is set
+    if (YOCO_WEBHOOK_SECRET) {
+      const sig = req.headers['webhook-signature'];
+      const webhookId = req.headers['webhook-id'];
+      const timestamp = req.headers['webhook-timestamp'];
+
+      if (sig && webhookId && timestamp) {
+        const payload = `${webhookId}.${timestamp}.${JSON.stringify(req.body)}`;
+        const secret = Buffer.from(YOCO_WEBHOOK_SECRET.replace('whsec_', ''), 'base64');
+        const computed = crypto.createHmac('sha256', secret).update(payload).digest('base64');
+
+        const signatures = sig.split(' ');
+        const verified = signatures.some(s => {
+          const val = s.split(',')[1] || s;
+          return val === computed;
+        });
+
+        if (!verified) {
+          console.error('Webhook signature verification failed');
+          return res.status(400).json({ error: 'Invalid signature' });
+        }
+      }
+    }
+
     const event = req.body;
 
     console.log('Yoco webhook:', {
@@ -104,6 +129,7 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     yoco_secret_key: YOCO_SECRET_KEY ? 'set' : 'MISSING',
+    yoco_webhook_secret: YOCO_WEBHOOK_SECRET ? 'set' : 'MISSING',
     site_url: SITE_URL
   });
 });
